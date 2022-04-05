@@ -26,14 +26,15 @@ ifeq ($(ARCH),"arm")
   endif
 endif
 
-# These allow Cargo packaged projects to be compile via $(call xxx/Compile/Cargo)
-define Host/Compile/Cargo
-	cd $(PKG_BUILD_DIR) && CARGO_HOME=$(CARGO_HOME) RUSTFLAGS=$(RUSTFLAGS) cargo update && \
-	  CARGO_HOME=$(CARGO_HOME) RUSTFLAGS=$(RUSTFLAGS) cargo build -v --release \
-	  --target $(RUSTC_TARGET_ARCH),$(RUST_HOST_ARCH)
+# Updates Cargo.lock for Packages
+define RustPackage/Cargo/Update
+	cd $(PKG_BUILD_DIR) && \
+	CARGO_HOME=$(CARGO_HOME) RUSTFLAGS=$(RUSTFLAGS) cargo update $(1)
 endef
 
-define Build/Compile/Cargo
-	cd $(PKG_BUILD_DIR) && CARGO_HOME=$(CARGO_HOME) RUSTFLAGS=$(RUSTFLAGS) cargo update && \
-	  CARGO_HOME=$(CARGO_HOME) RUSTFLAGS=$(RUSTFLAGS) cargo build -v --release --target $(RUSTC_TARGET_ARCH)
+# Build Cargo-based Packages
+define RustPackage/Cargo/Compile
+	cd $(PKG_BUILD_DIR) && \
+	  CARGO_HOME=$(CARGO_HOME) RUSTFLAGS=$(RUSTFLAGS) cargo build -v --release \
+	  --target $(RUSTC_TARGET_ARCH) $(1)
 endef
