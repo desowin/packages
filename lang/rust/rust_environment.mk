@@ -1,8 +1,13 @@
 # Rust Environmental Vars
+RUST_VERSION:=rust-1.59.0
 CONFIG_HOST_SUFFIX:=$(shell cut -d"-" -f4 <<<"$(GNU_HOST_NAME)")
 RUSTC_HOST_ARCH:=$(HOST_ARCH)-unknown-linux-$(CONFIG_HOST_SUFFIX)
 RUSTC_TARGET_ARCH:=$(REAL_GNU_TARGET_NAME)
 CARGO_HOME:=$(STAGING_DIR_HOST)
+RUSTC_TARGET_AVAILABLE:=$($(CARGO_HOME)/bin/rustc --print target-list | awk '$1 ~ /$(RUSTC_TARGET_ARCH)/')
+
+# Rust-lang has an uninstall script
+RUST_UNINSTALL:=$(CARGO_HOME)/lib/rustlib/uninstall.sh
 
 # These RUSTFLAGS are common across all TARGETs
 RUSTFLAGS = "-C linker=$(TOOLCHAIN_DIR)/bin/$(TARGET_CC_NOCACHE) -C ar=$(TOOLCHAIN_DIR)/bin/$(TARGET_AR)"
@@ -28,6 +33,15 @@ ifeq ($(ARCH),arm)
   endif
 endif
 
+RUST_INSTALL_HOST_FILENAME:=$(RUST_VERSION)-$(RUSTC_HOST_ARCH)-install.tar.xz
+RUST_INSTALL_TARGET_FILENAME:=$(RUST_VERSION)-$(RUSTC_TARGET_ARCH)-install.tar.xz
+
+# Is RUSTC_TARGET_ARCH installed and available?
+RUSTC_TARGET_AVAILABLE:=$($(CARGO_HOME)/bin/rustc --print target-list | awk '$1 ~ /$(RUSTC_TARGET_ARCH)/')
+
+# Rust-lang has an uninstall script
+RUST_UNINSTALL:=$(CARGO_HOME)/lib/rustlib/uninstall.sh
+
 # Updates Cargo.lock for Packages
 define RustPackage/Cargo/Update
 	cd $(PKG_BUILD_DIR) && \
@@ -40,3 +54,30 @@ define RustPackage/Cargo/Compile
 	  CARGO_HOME=$(CARGO_HOME) RUSTFLAGS=$(RUSTFLAGS) cargo build -v --release \
 	  --target $(RUSTC_TARGET_ARCH) $(1)
 endef
+
+define RustHost/Install
+	$(TAR) -C $(RUST_TMP_DIR) -xJf $(DL_DIR)/$(RUST_INSTALL_HOST_FILENAME) && \
+	$(TAR) -C $(RUST_TMP_DIR) -xJf $(DL_DIR)/$(RUST_INSTALL_TARGET_FILENAME)
+
+	cd $(RUST_TMP_DIR) && \
+	  find -iname "*.xz" -exec tar -xJf {} ";" && \
+	  find ./* -type f -name install.sh -execdir sh {} --prefix=$(CARGO_HOME) --disable-ldconfig \;
+endef
+
+define RustHost/Uninstall
+	# Call the Uninstall script
+	[ -f $(RUST_UNINSTALL) ] && \
+	  $(BASH) $(RUST_UNINSTALL) || echo No Uninstall
+
+	rm -rf $(RUST_TMP_DIR)
+endef
+
+# Is RUSTC_TARGET_ARCH installed and available?
+RUSTC_TARGET_AVAILABLE:=$($(CARGO_HOME)/bin/rustc --print target-list | awk '$1 ~ /$(RUSTC_TARGET_ARCH)/')
+
+# One last attempt to install an existing toolchain
+ifeq ($(RUSTC_TARGET_AVAILABLE),)
+ifeq ($(HAS_TARGET_INSTALL),true)
+$(eval $(call HostBuild,rust))
+endif
+endif

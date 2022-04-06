@@ -38,6 +38,9 @@ include $(INCLUDE_DIR)/package.mk
 # Requires Python3 to build
 HOST_BUILD_DEPENDS:=python3/host
 
+# Notate the rust version
+$(shell sed -i 's/^RUST_VERSION.*/RUST_VERSION:=$(PKG_NAME)-$(PKG_VERSION)/g' ./rust_environment.mk)
+
 # rust environmental variables
 include ./rust_environment.mk
 
@@ -47,12 +50,11 @@ RUST_TMP_DIR:=$(TMP_DIR)/rust-install
 RUST_INSTALL_HOST_FILENAME:=$(PKG_NAME)-$(PKG_VERSION)-$(RUSTC_HOST_ARCH)-install.tar.xz
 RUST_INSTALL_TARGET_FILENAME:=$(PKG_NAME)-$(PKG_VERSION)-$(RUSTC_TARGET_ARCH)-install.tar.xz
 
-# Rust-lang has an uninstall script
-RUST_UNINSTALL:=$(CARGO_HOME)/lib/rustlib/uninstall.sh
-
 # This checks to see if the dist installation already exists
 IS_RUSTC_INSTALLED:=$(or $(and $(wildcard $(CARGO_HOME)/bin/rustc),true),false)
 IS_CARGO_INSTALLED:=$(or $(and $(wildcard $(CARGO_HOME)/bin/cargo),true),false)
+HAS_HOST_INSTALL:=$(or $(and $(wildcard $(DL_DIR)/$(RUST_INSTALL_HOST_FILENAME)),true),false)
+HAS_TARGET_INSTALL:=$(or $(and $(wildcard $(DL_DIR)/$(RUST_INSTALL_TARGET_FILENAME)),true),false)
 
 # MUSL Target Flags
 MUSL_CONFIGURE_ARGS = \
@@ -111,43 +113,14 @@ HOST_CONFIGURE_ARGS = \
 #  $(RUST_COMMOM_ARGS) \
 #  --set=llvm.cxxflags='$(RUST_LLVM_CXXFLAGS)'
 
-# Add rust_config.mk Debug flags
-#include ./rust_config.mk
-
-define Host/Prepare
-	# Ensure rust temp directory
-	[ -d $(RUST_TMP_DIR) ] || \
-	  mkdir -p $(RUST_TMP_DIR)
-
-	$(call Host/Prepare/Default)
-endef
-
 define Host/Uninstall
-	# Call the Uninstall script
-	[ -f $(RUST_UNINSTALL) ] && \
-	  $(BASH) $(RUST_UNINSTALL) || echo No Uninstall
-
-	rm -rf $(RUST_TMP_DIR)
-endef
-
-# Makes and then packages the dist artifacts
-define Host/Compile
-	cd $(HOST_BUILD_DIR) && \
-	  $(PYTHON) x.py --config ./config.toml dist build-manifest cargo llvm-tools \
-	    rustc rust-std rust-src
-
-	$(call Host/PackageDist)
+	$(call RustHost/Uninstall)
 endef
 
 # Distribution Artifacts are packaged by Host/PackageDist
 # We just need to extract and install
 define Host/Install
-	$(TAR) -C $(RUST_TMP_DIR) -xJf $(DL_DIR)/$(RUST_INSTALL_HOST_FILENAME) && \
-	$(TAR) -C $(RUST_TMP_DIR) -xJf $(DL_DIR)/$(RUST_INSTALL_TARGET_FILENAME)
-
-	cd $(RUST_TMP_DIR) && \
-	  find -iname "*.xz" -exec tar -xJf {} ";" && \
-	  find ./* -type f -name install.sh -execdir sh {} --prefix=$(CARGO_HOME) --disable-ldconfig \;
+	$(call RustHost/Install)
 endef
 
 # Packages the Distribution Artifacts into HOST and TARGET bundles.
@@ -160,6 +133,17 @@ define Host/PackageDist
 	  $(TAR) -cJf $(DL_DIR)/$(RUST_INSTALL_HOST_FILENAME) \
 	  --exclude rust-*-$(RUSTC_TARGET_ARCH).tar.xz *.xz
 endef
+
+# Reuse Compiled Toolchain, if available
+# Check to see if RUSTC_TARGET_ARCH is available as a target
+# Install if the Distro file is available, compile if not
+ifeq ($(RUSTC_TARGET_AVAILABLE),)
+ifeq ($(HAS_TARGET_INSTALL),true)
+include ./rust_install.mk
+else
+include ./rust_compile.mk
+endif
+endif
 
 define Package/rust
   SECTION:=lang
