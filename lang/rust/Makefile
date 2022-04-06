@@ -113,6 +113,17 @@ HOST_CONFIGURE_ARGS = \
 #  $(RUST_COMMOM_ARGS) \
 #  --set=llvm.cxxflags='$(RUST_LLVM_CXXFLAGS)'
 
+# Reuse Compiled Toolchain, if available
+# Check to see if RUSTC_TARGET_ARCH is available as a target
+# Install if the Distro file is available, compile if not
+ifeq ($(RUSTC_TARGET_AVAILABLE),)
+ifeq ($(HAS_TARGET_INSTALL),true)
+include ./rust_install.mk
+else
+include ./rust_compile.mk
+endif
+endif
+
 define Host/Uninstall
 	$(call RustHost/Uninstall)
 endef
@@ -133,17 +144,6 @@ define Host/PackageDist
 	  $(TAR) -cJf $(DL_DIR)/$(RUST_INSTALL_HOST_FILENAME) \
 	  --exclude rust-*-$(RUSTC_TARGET_ARCH).tar.xz *.xz
 endef
-
-# Reuse Compiled Toolchain, if available
-# Check to see if RUSTC_TARGET_ARCH is available as a target
-# Install if the Distro file is available, compile if not
-ifeq ($(RUSTC_TARGET_AVAILABLE),)
-ifeq ($(HAS_TARGET_INSTALL),true)
-include ./rust_install.mk
-else
-include ./rust_compile.mk
-endif
-endif
 
 define Package/rust
   SECTION:=lang
