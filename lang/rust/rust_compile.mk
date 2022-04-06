@@ -14,3 +14,14 @@ define Host/Compile
 
 	$(call RustHost/PackageDist)
 endef
+
+# Packages the Distribution Artifacts into HOST and TARGET bundles.
+define RustHost/PackageDist
+	cd $(HOST_BUILD_DIR)/build/dist && \
+	  $(TAR) -cJf $(DL_DIR)/$(RUST_INSTALL_TARGET_FILENAME) \
+	  rust-*-$(RUSTC_TARGET_ARCH).tar.xz
+
+	cd $(HOST_BUILD_DIR)/build/dist && \
+	  $(TAR) -cJf $(DL_DIR)/$(RUST_INSTALL_HOST_FILENAME) \
+	  --exclude rust-*-$(RUSTC_TARGET_ARCH).tar.xz *.xz
+endef

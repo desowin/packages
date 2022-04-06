@@ -46,6 +46,7 @@ include ./rust_environment.mk
 
 # Rust Temp Directory
 RUST_TMP_DIR:=$(TMP_DIR)/rust-install
+RUST_UNINSTALL:=$(CARGO_HOME)/lib/rustlib/uninstall.sh
 
 RUST_INSTALL_HOST_FILENAME:=$(PKG_NAME)-$(PKG_VERSION)-$(RUSTC_HOST_ARCH)-install.tar.xz
 RUST_INSTALL_TARGET_FILENAME:=$(PKG_NAME)-$(PKG_VERSION)-$(RUSTC_TARGET_ARCH)-install.tar.xz
@@ -125,24 +126,22 @@ endif
 endif
 
 define Host/Uninstall
-	$(call RustHost/Uninstall)
+	# Call the Uninstall script
+	[ -f $(RUST_UNINSTALL) ] && \
+	  $(BASH) $(RUST_UNINSTALL) || echo No Uninstall
+
+	rm -rf $(RUST_TMP_DIR)
 endef
 
 # Distribution Artifacts are packaged by Host/PackageDist
 # We just need to extract and install
 define Host/Install
-	$(call RustHost/Install)
-endef
+	$(TAR) -C $(RUST_TMP_DIR) -xJf $(DL_DIR)/$(RUST_INSTALL_HOST_FILENAME) && \
+	$(TAR) -C $(RUST_TMP_DIR) -xJf $(DL_DIR)/$(RUST_INSTALL_TARGET_FILENAME)
 
-# Packages the Distribution Artifacts into HOST and TARGET bundles.
-define Host/PackageDist
-	cd $(HOST_BUILD_DIR)/build/dist && \
-	  $(TAR) -cJf $(DL_DIR)/$(RUST_INSTALL_TARGET_FILENAME) \
-	  rust-*-$(RUSTC_TARGET_ARCH).tar.xz
-
-	cd $(HOST_BUILD_DIR)/build/dist && \
-	  $(TAR) -cJf $(DL_DIR)/$(RUST_INSTALL_HOST_FILENAME) \
-	  --exclude rust-*-$(RUSTC_TARGET_ARCH).tar.xz *.xz
+	cd $(RUST_TMP_DIR) && \
+	  find -iname "*.xz" -exec tar -xJf {} ";" && \
+	  find ./* -type f -name install.sh -execdir sh {} --prefix=$(CARGO_HOME) --disable-ldconfig \;
 endef
 
 define Package/rust

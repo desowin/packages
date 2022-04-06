@@ -39,9 +39,6 @@ RUST_INSTALL_TARGET_FILENAME:=$(RUST_VERSION)-$(RUSTC_TARGET_ARCH)-install.tar.x
 # Is RUSTC_TARGET_ARCH installed and available?
 RUSTC_TARGET_AVAILABLE:=$($(CARGO_HOME)/bin/rustc --print target-list | awk '$1 ~ /$(RUSTC_TARGET_ARCH)/')
 
-# Rust-lang has an uninstall script
-RUST_UNINSTALL:=$(CARGO_HOME)/lib/rustlib/uninstall.sh
-
 # Updates Cargo.lock for Packages
 define RustPackage/Cargo/Update
 	cd $(PKG_BUILD_DIR) && \
@@ -55,27 +52,11 @@ define RustPackage/Cargo/Compile
 	  --target $(RUSTC_TARGET_ARCH) $(1)
 endef
 
-define RustHost/Install
-	$(TAR) -C $(RUST_TMP_DIR) -xJf $(DL_DIR)/$(RUST_INSTALL_HOST_FILENAME) && \
-	$(TAR) -C $(RUST_TMP_DIR) -xJf $(DL_DIR)/$(RUST_INSTALL_TARGET_FILENAME)
-
-	cd $(RUST_TMP_DIR) && \
-	  find -iname "*.xz" -exec tar -xJf {} ";" && \
-	  find ./* -type f -name install.sh -execdir sh {} --prefix=$(CARGO_HOME) --disable-ldconfig \;
-endef
-
-define RustHost/Uninstall
-	# Call the Uninstall script
-	[ -f $(RUST_UNINSTALL) ] && \
-	  $(BASH) $(RUST_UNINSTALL) || echo No Uninstall
-
-	rm -rf $(RUST_TMP_DIR)
-endef
-
 # Is RUSTC_TARGET_ARCH installed and available?
 RUSTC_TARGET_AVAILABLE:=$($(CARGO_HOME)/bin/rustc --print target-list | awk '$1 ~ /$(RUSTC_TARGET_ARCH)/')
 
-# One last attempt to install an existing toolchain
+# See if the target toolchain is installed/available
+# Attempt to install if not
 ifeq ($(RUSTC_TARGET_AVAILABLE),)
 ifeq ($(HAS_TARGET_INSTALL),true)
 $(eval $(call HostBuild,rust))
