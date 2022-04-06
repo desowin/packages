@@ -16,11 +16,13 @@ RUST_BUILD_FLAGS = \
 MAKE_FLAGS += $(RUST_BUILD_FLAGS)
 
 # ARM Logic
-ifeq ($(ARCH),"arm")
+ifeq ($(ARCH),arm)
   ifeq ($(CONFIG_arm_v7),y)
     RUSTC_TARGET_ARCH:=$(subst arm,armv7,$(RUSTC_TARGET_ARCH))
   endif
+endif
 
+ifeq ($(ARCH),arm)
   ifeq ($(CONFIG_HAS_FPU),y)
     RUSTC_TARGET_ARCH:=$(subst muslgnueabi,muslgnueabihf,$(RUSTC_TARGET_ARCH))
   endif
