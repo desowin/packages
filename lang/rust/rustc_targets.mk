@@ -35,7 +35,7 @@ $(warning Entering ARM)
   # ARMv5
   ifeq ($(RUSTC_CPU_TYPE),arm926ej-s)
     $(warning Target is ARMv5)
-    RUSTC_TARGET_ARCH:=$(subst arm,armv5tej,$(RUSTC_TARGET_ARCH))
+    RUSTC_TARGET_ARCH:=$(subst arm,armv7,$(RUSTC_TARGET_ARCH))
     RUST_FEATURES += +soft-float +strict-align
   endif
 
@@ -79,6 +79,11 @@ $(warning Entering ARM)
       RUST_TARGET_FEATURES = $(subst $(space),$(comma),$(RUST_FEATURES))
   else
       RUST_TARGET_FEATURES = $(RUST_FEATURES)
+  endif
+
+  ifeq ($(RUSTC_CPU_TYPE),fa526)
+   RUSTC_TARGET_ARCH:=$(subst arm,armv7,$(RUSTC_TARGET_ARCH))
+   RUSTC_CPU_TYPE := generic
   endif
 endif
 
